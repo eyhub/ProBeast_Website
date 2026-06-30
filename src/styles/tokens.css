@@ -1,0 +1,106 @@
+/* =========================================================================
+   ProBeast — Design Tokens
+   Performance / technical brand language. Single source of truth for color,
+   type, space, motion. Consumed via CSS custom properties everywhere.
+   ========================================================================= */
+
+:root {
+  /* ---- Primitive palette ------------------------------------------------ */
+  --beast-obsidian: #06080a; /* page black */
+  --beast-graphite: #0e1216;
+  --beast-carbon: #161b21;
+  --beast-steel: #2a323b;
+  --beast-ash: #6b7680;
+  --beast-fog: #aab4bc;
+  --beast-bone: #eef2f4;
+
+  /* Petrol green — pulled straight from the logo SVG (.cls-4) */
+  --beast-petrol: #00a99d;
+  --beast-petrol-bright: #19e9d2; /* lit / glow variant */
+  --beast-petrol-deep: #04645c;
+
+  /* ---- Semantic ---------------------------------------------------------- */
+  --color-bg: var(--beast-obsidian);
+  --color-surface: var(--beast-graphite);
+  --color-surface-raised: var(--beast-carbon);
+  --color-border: var(--beast-steel);
+  --color-text: var(--beast-bone);
+  --color-text-muted: var(--beast-fog);
+  --color-text-subtle: var(--beast-ash);
+  --color-accent: var(--beast-petrol);
+  --color-accent-bright: var(--beast-petrol-bright);
+
+  /* ---- Typography -------------------------------------------------------- */
+  --font-display: 'Eurostile Extended', 'Arial Narrow', system-ui, sans-serif;
+  --font-body:
+    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
+    sans-serif;
+  --font-mono:
+    ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Consolas,
+    monospace;
+
+  /* Fluid display scale (clamp: min, vw, max) */
+  --text-hero: clamp(2.5rem, 1.2rem + 6vw, 7rem);
+  --text-2xl: clamp(1.75rem, 1.2rem + 2vw, 2.75rem);
+  --text-xl: 1.5rem;
+  --text-lg: 1.25rem;
+  --text-md: 1rem;
+  --text-sm: 0.875rem;
+  --text-xs: 0.75rem;
+  --text-2xs: 0.6875rem;
+
+  --weight-regular: 400;
+  --weight-medium: 500;
+  --weight-bold: 700;
+  --weight-black: 900;
+
+  --leading-tight: 1.05;
+  --leading-snug: 1.25;
+  --leading-normal: 1.5;
+
+  /* Eurostile Extended is already wide — caps want air, not crushing */
+  --tracking-display: 0.04em;
+  --tracking-wide: 0.18em; /* eyebrows / labels */
+  --tracking-mono: 0.02em;
+
+  /* ---- Spacing (4px base) ----------------------------------------------- */
+  --space-0: 0;
+  --space-1: 0.25rem;
+  --space-2: 0.5rem;
+  --space-3: 0.75rem;
+  --space-4: 1rem;
+  --space-6: 1.5rem;
+  --space-8: 2rem;
+  --space-12: 3rem;
+  --space-16: 4rem;
+  --space-24: 6rem;
+  --space-32: 8rem;
+
+  /* ---- Radii ------------------------------------------------------------- */
+  --radius-xs: 2px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 14px;
+  --radius-full: 999px;
+
+  /* ---- Elevation / glow -------------------------------------------------- */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.45);
+  --glow-petrol: 0 0 32px rgba(0, 169, 157, 0.45);
+
+  /* ---- Motion (curves from emil-design-eng) ----------------------------- */
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1); /* strong ease-out for UI */
+  --ease-in-out: cubic-bezier(0.77, 0, 0.175, 1); /* on-screen movement */
+  --ease-drawer: cubic-bezier(0.32, 0.72, 0, 1); /* iOS-like settle */
+
+  --dur-press: 140ms;
+  --dur-fast: 180ms;
+  --dur-base: 220ms;
+  --dur-slow: 320ms;
+  --dur-slower: 480ms;
+
+  /* ---- Z-index ----------------------------------------------------------- */
+  --z-canvas: 0;
+  --z-overlay: 10;
+  --z-nav: 100;
+}

@@ -1,0 +1,14 @@
+/* Brand display face. Body/mono fall back to robust system stacks (see tokens). */
+
+/* Repaired build of the supplied Eurostile Extended Black: the original TTF
+   shipped with a corrupt cmap (truncated format-4 subtable) that browsers'
+   OTS sanitizer rejected. cmap was rebuilt from glyph names; see public/fonts. */
+@font-face {
+  font-family: 'Eurostile Extended';
+  src:
+    url('/fonts/Eurostile-fixed.woff2') format('woff2'),
+    url('/fonts/Eurostile-fixed.ttf') format('truetype');
+  font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
