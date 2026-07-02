@@ -4,7 +4,22 @@ import { Leva, useControls, folder } from 'leva';
 import { NoToneMapping, type Mesh, type ShaderMaterial } from 'three';
 import { PS1Pipeline } from './PS1Pipeline';
 import { createPS1Material, makeSharedUniforms, type SharedUniforms } from './ps1Material';
+import { createBackgroundMaterial } from './backgroundMaterial';
 import { makeCubeTexture, makeGroundTexture, setTextureFilter } from './textures';
+
+/** Rotating rainbow gradient + grain, behind the scene (into the low-res FBO). */
+function BackgroundGradient() {
+  const mat = useMemo(() => createBackgroundMaterial(), []);
+  useFrame((state) => {
+    mat.uniforms.uTime.value = state.clock.elapsedTime;
+  });
+  return (
+    <mesh renderOrder={-1} frustumCulled={false}>
+      <planeGeometry args={[2, 2]} />
+      <primitive object={mat} attach="material" />
+    </mesh>
+  );
+}
 
 function CameraRig() {
   const camera = useThree((s) => s.camera);
@@ -93,6 +108,7 @@ function World({ shared, snapAmt, affineAmt, fogFar, nearest }: WorldProps) {
   return (
     <>
       <CameraRig />
+      <BackgroundGradient />
       <mesh rotation={[-Math.PI / 2, 0, 0]}>
         <planeGeometry args={[60, 60, 8, 8]} />
         <primitive object={groundMat} attach="material" />

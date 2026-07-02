@@ -31,3 +31,6 @@ Thumbs.db
 # TS build info
 *.tsbuildinfo
 node_modules/.tmp
+
+# Local scratch / source-art archive (not tracked)
+/archive/
