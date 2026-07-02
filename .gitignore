@@ -34,3 +34,8 @@ node_modules/.tmp
 
 # Local scratch / source-art archive (not tracked)
 /archive/
+# Scene authoring sources (.blend etc.) — runtime GLB is copied into public/models/
+/Test_Garage/
+
+# Local dev-server logs
+.devserver.*

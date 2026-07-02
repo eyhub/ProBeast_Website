@@ -1,6 +1,6 @@
-import { PS1Lab } from './scenes/ps1/PS1Lab';
+import { GarageScene } from './scenes/ps1/GarageScene';
 
-// Hero is parked for now (kept in src/components/Hero + src/scenes/HeroCanvas).
+// Hero + cube/rainbow PS1Lab are parked (kept in src/components/Hero, src/scenes/ps1/PS1Lab).
 export function App() {
-  return <PS1Lab />;
+  return <GarageScene />;
 }

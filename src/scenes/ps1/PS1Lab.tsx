@@ -94,8 +94,11 @@ interface WorldProps {
 function World({ shared, snapAmt, affineAmt, fogFar, nearest }: WorldProps) {
   const groundTex = useMemo(() => makeGroundTexture(), []);
   const cubeTex = useMemo(() => makeCubeTexture(), []);
-  const groundMat = useMemo(() => createPS1Material(shared, groundTex), [shared, groundTex]);
-  const cubeMat = useMemo(() => createPS1Material(shared, cubeTex), [shared, cubeTex]);
+  const groundMat = useMemo(
+    () => createPS1Material(shared, { map: groundTex }),
+    [shared, groundTex]
+  );
+  const cubeMat = useMemo(() => createPS1Material(shared, { map: cubeTex }), [shared, cubeTex]);
 
   useEffect(() => void (shared.uSnapAmt.value = snapAmt), [snapAmt, shared]);
   useEffect(() => void (shared.uAffineAmt.value = affineAmt), [affineAmt, shared]);
