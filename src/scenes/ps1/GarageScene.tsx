@@ -1,7 +1,7 @@
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
-import { Leva, useControls, folder } from 'leva';
+import { LevaPanel, useControls, useCreateStore, folder } from 'leva';
 import {
   Color,
   Matrix4,
@@ -17,6 +17,7 @@ import { PS1Pipeline } from './PS1Pipeline';
 import { makeSharedUniforms, ps1MaterialFromStandard, type SharedUniforms } from './ps1Material';
 import { CameraTween, readGltfCameras } from './cameraJump';
 import { CameraButtons } from './CameraButtons';
+import panelStyles from './RendererPanel.module.css';
 
 const GLB_URL = '/models/test-garage.glb';
 const DRACO_PATH = '/draco/';
@@ -138,13 +139,16 @@ function GarageWorld({
 
 export function GarageScene() {
   const shared = useMemo(() => makeSharedUniforms(), []);
+  const store = useCreateStore();
+  const [panelOpen, setPanelOpen] = useState(false);
   const [cameras, setCameras] = useState<{ label: string }[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const jumpRef = useRef<(index: number) => void>(() => {});
   const registerJump = useCallback((fn: (index: number) => void) => void (jumpRef.current = fn), []);
 
-  const c = useControls({
-    Pixelation: folder({
+  const c = useControls(
+    {
+      Pixelation: folder({
       pixelation: { value: true, label: 'enabled' },
       internalHeight: { value: 240, min: 64, max: 480, step: 2, label: 'internal res (px)' },
     }),
@@ -169,10 +173,12 @@ export function GarageScene() {
       fogOn: { value: true, label: 'enabled' },
       fogFar: { value: 50, min: 10, max: 80, step: 1, label: 'far distance' },
     }),
-    Camera: folder({
-      duration: { value: 1, min: 0.1, max: 3, step: 0.05, label: 'transition (s)' },
-    }),
-  });
+      Camera: folder({
+        duration: { value: 1, min: 0.1, max: 3, step: 0.05, label: 'transition (s)' },
+      }),
+    },
+    { store },
+  );
 
   const snapAmt = c.jitterOn ? c.snap : 0;
   const affineAmt = c.affineOn ? c.affine : 0;
@@ -182,7 +188,34 @@ export function GarageScene() {
 
   return (
     <>
-      <Leva collapsed={false} />
+      {panelOpen && (
+        <div className={panelStyles.wrap}>
+          <LevaPanel store={store} fill flat titleBar={false} collapsed={false} />
+        </div>
+      )}
+      <button
+        type="button"
+        className={`${panelStyles.toggle} ${panelOpen ? panelStyles.open : ''}`}
+        aria-expanded={panelOpen}
+        aria-label="Toggle renderer controls"
+        onClick={() => setPanelOpen((o) => !o)}
+      >
+        <svg className={panelStyles.icon} viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          {panelOpen ? (
+            <path
+              d="M6 6l12 12M18 6L6 18"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+            />
+          ) : (
+            <path
+              fill="currentColor"
+              d="M12 8.5a3.5 3.5 0 100 7 3.5 3.5 0 000-7zm9.4 2.6l-1.7-.4a7.9 7.9 0 00-.6-1.4l.9-1.5a.7.7 0 00-.1-.9l-1.3-1.3a.7.7 0 00-.9-.1l-1.5.9a7.9 7.9 0 00-1.4-.6l-.4-1.7a.7.7 0 00-.7-.5h-1.9a.7.7 0 00-.7.5l-.4 1.7a7.9 7.9 0 00-1.4.6l-1.5-.9a.7.7 0 00-.9.1L4.1 7.2a.7.7 0 00-.1.9l.9 1.5a7.9 7.9 0 00-.6 1.4l-1.7.4a.7.7 0 00-.5.7v1.9c0 .3.2.6.5.7l1.7.4c.2.5.4 1 .6 1.4l-.9 1.5a.7.7 0 00.1.9l1.3 1.3c.3.3.7.3 1 .1l1.4-.9c.5.2 1 .5 1.4.6l.4 1.7c.1.3.4.5.7.5h1.9c.3 0 .6-.2.7-.5l.4-1.7c.5-.2 1-.4 1.4-.6l1.5.9c.3.2.7.1 1-.1l1.3-1.3a.7.7 0 00.1-.9l-.9-1.5c.2-.4.5-.9.6-1.4l1.7-.4a.7.7 0 00.5-.7v-1.9a.7.7 0 00-.5-.7z"
+            />
+          )}
+        </svg>
+      </button>
       <Canvas
         dpr={1}
         gl={{ antialias: false }}
