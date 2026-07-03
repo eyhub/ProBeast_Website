@@ -1,0 +1,20 @@
+.scroller {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  overflow-y: auto;
+  scroll-snap-type: y proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.scroller::-webkit-scrollbar {
+  display: none;
+}
+
+.section {
+  min-height: 100vh;
+  scroll-snap-align: start;
+  /* Spacers only — never block the canvas behind. */
+  pointer-events: none;
+}

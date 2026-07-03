@@ -1,7 +1,7 @@
 .toggle {
   position: fixed;
   left: var(--space-6);
-  bottom: var(--space-6);
+  bottom: calc(var(--space-6) + 3rem);
   z-index: var(--z-overlay);
   display: inline-grid;
   place-items: center;
@@ -52,7 +52,7 @@
 .wrap {
   position: fixed;
   left: var(--space-6);
-  bottom: calc(var(--space-6) + 3rem + var(--space-2));
+  bottom: calc(var(--space-6) + 3rem + 3rem + var(--space-2));
   z-index: var(--z-overlay);
   width: 300px;
   max-height: 80vh;

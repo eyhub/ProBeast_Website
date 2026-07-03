@@ -17,7 +17,10 @@ import { PS1Pipeline } from './PS1Pipeline';
 import { makeSharedUniforms, ps1MaterialFromStandard, type SharedUniforms } from './ps1Material';
 import { CameraTween, readGltfCameras } from './cameraJump';
 import { CameraButtons } from './CameraButtons';
+import { Footer } from './Footer';
 import panelStyles from './RendererPanel.module.css';
+import scrollStyles from './ScrollSections.module.css';
+import { useScrollNav } from './useScrollNav';
 
 const GLB_URL = '/models/test-garage.glb';
 const DRACO_PATH = '/draco/';
@@ -161,19 +164,40 @@ export function GarageScene() {
         else window.history.replaceState({ index }, '', `/${slug}`);
       }
     },
-    [cameras]
+    [cameras],
   );
 
-  // Browser back/forward: tween to the camera matching the URL, no pushState.
+  // Scroll-driven nav: as a section crosses viewport center, tween the camera + push URL.
+  const handleSectionChange = useCallback((i: number) => jumpAndSync(i, true), [jumpAndSync]);
+  const { scrollerRef, sectionRefs, scrollToSection } = useScrollNav({
+    count: cameras.length,
+    onSectionChange: handleSectionChange,
+  });
+
+  // Browser back/forward: instant-scroll to the section + tween the camera (no push).
   useEffect(() => {
     const onPop = () => {
       const slug = window.location.pathname.slice(1);
       const i = cameras.findIndex((c) => c.slug === slug);
-      if (i >= 0) jumpRef.current(i);
+      if (i >= 0) {
+        scrollToSection(i, false);
+        jumpRef.current(i);
+      }
     };
     window.addEventListener('popstate', onPop);
     return () => window.removeEventListener('popstate', onPop);
-  }, [cameras]);
+  }, [cameras, scrollToSection]);
+
+  // On first camera load, instant-scroll to the active (URL-matched) section so the
+  // observer starts in sync with the snapped camera.
+  const initedScroll = useRef(false);
+  useEffect(() => {
+    if (cameras.length && !initedScroll.current) {
+      initedScroll.current = true;
+      const i = activeIndex;
+      requestAnimationFrame(() => scrollToSection(i, false));
+    }
+  }, [cameras.length, activeIndex, scrollToSection]);
 
   const c = useControls(
     {
@@ -248,6 +272,7 @@ export function GarageScene() {
       <Canvas
         dpr={1}
         gl={{ antialias: false }}
+        style={{ position: 'fixed', inset: 0 }}
         camera={{ fov: 50, near: 0.1, far: 1000, position: [-13.5, 2.7, 1.3] }}
         onCreated={({ gl }) => {
           gl.toneMapping = NoToneMapping;
@@ -275,7 +300,20 @@ export function GarageScene() {
           </Suspense>
         </PS1Pipeline>
       </Canvas>
-      <CameraButtons cameras={cameras} activeIndex={activeIndex} onJump={(i) => jumpAndSync(i, true)} />
+      <div ref={scrollerRef} className={scrollStyles.scroller}>
+        {cameras.map((cam, i) => (
+          <section
+            key={cam.slug}
+            id={cam.slug}
+            data-index={i}
+            ref={(el) => void (sectionRefs.current[i] = el)}
+            className={scrollStyles.section}
+            aria-hidden="true"
+          />
+        ))}
+      </div>
+      <Footer />
+      <CameraButtons cameras={cameras} activeIndex={activeIndex} onJump={(i) => scrollToSection(i, true)} />
     </>
   );
 }
