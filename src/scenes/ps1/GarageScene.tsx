@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type RefObject } from 'react';
 import { Canvas, useFrame, useThree } from '@react-three/fiber';
 import { useGLTF } from '@react-three/drei';
 import { LevaPanel, useControls, useCreateStore, folder } from 'leva';
@@ -9,6 +9,7 @@ import {
   PointLight,
   Quaternion,
   Vector3,
+  type BufferGeometry,
   type Material,
   type Mesh,
   type PerspectiveCamera,
@@ -18,6 +19,7 @@ import { PS1Pipeline } from './PS1Pipeline';
 import { makeSharedUniforms, ps1MaterialFromStandard, type SharedUniforms } from './ps1Material';
 import { CameraTween, readGltfCameras, type CameraTarget } from './cameraJump';
 import { DemoCluster } from './DemoCluster';
+import { OverhangHotspot } from './OverhangHotspot';
 import { useSceneAnimations } from './useSceneAnimations';
 import { CameraButtons } from './CameraButtons';
 import { Footer } from './Footer';
@@ -25,8 +27,15 @@ import panelStyles from './RendererPanel.module.css';
 import scrollStyles from './ScrollSections.module.css';
 import { useScrollNav } from './useScrollNav';
 
-const GLB_URL = '/models/test-garage.glb';
+const GLB_URL = '/models/test-garage-2.glb';
 const DRACO_PATH = '/draco/';
+
+/**
+ * The font/texture-test planes (stacked near the ceiling, framed by the Showcase camera).
+ * They sit in a corner our single point light never reaches, so render them self-lit from
+ * their own texture — otherwise the panels are pure black. See ps1MaterialFromStandard.
+ */
+const SELF_LIT_MESHES = new Set(['Plane', 'Plane001', 'Plane002', 'Plane003']);
 
 useGLTF.preload(GLB_URL, DRACO_PATH);
 
@@ -45,6 +54,7 @@ interface GarageWorldProps {
   onCamerasReady: (cameras: { label: string; slug: string }[]) => void;
   onActiveChange: (index: number) => void;
   registerJump: (fn: (index: number) => void) => void;
+  onHotspotSelect: (slug: string) => void;
 }
 
 /** Lives inside the PS1 low-res portal: loads the GLB, PS1-ifies it, drives the camera. */
@@ -63,26 +73,33 @@ function GarageWorld({
   onCamerasReady,
   onActiveChange,
   registerJump,
+  onHotspotSelect,
 }: GarageWorldProps) {
   const gltf = useGLTF(GLB_URL, DRACO_PATH);
   const camera = useThree((s) => s.camera) as PerspectiveCamera;
 
-  // Own a clone so we can swap materials without mutating the useGLTF cache.
-  const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
-
-  // Replace every mesh material with a PS1 material. Dedup key = source material +
-  // per-geometry flags that force distinct GPU programs (PRD §6: vertex colors).
-  useMemo(() => {
+  // Clone the useGLTF result (never mutate its cache) and PS1-ify every material in ONE
+  // derivation from the pristine gltf.scene. This must stay a single memo: the clone shares
+  // the original glTF materials by reference and we only reassign the *clone's* mesh.material
+  // pointers, so every run starts from the originals (which still carry `.map`). Splitting the
+  // clone and the conversion made the swap a side effect that, on a second invocation (React
+  // StrictMode double-invoke in dev), re-read an already-converted ShaderMaterial — which has
+  // no `.map` — and silently dropped every texture. Dedup key = source material + per-geometry
+  // flags that force distinct GPU programs (PRD §6: vertex colors).
+  const scene = useMemo(() => {
+    const root = gltf.scene.clone(true);
     const cache = new Map<string, ShaderMaterial>();
-    scene.traverse((o) => {
+    root.traverse((o) => {
       const mesh = o as Mesh;
       if (!mesh.isMesh) return;
+      if (mesh.name === 'Point_Target_Overhang') return; // drawn by <OverhangHotspot>, not here
       const hasVC = Boolean(mesh.geometry?.attributes?.color);
+      const emissiveFromMap = SELF_LIT_MESHES.has(mesh.name);
       const convert = (m: Material) => {
-        const key = `${m.uuid}|vc:${hasVC ? 1 : 0}`;
+        const key = `${m.uuid}|vc:${hasVC ? 1 : 0}|em:${emissiveFromMap ? 1 : 0}`;
         let ps1 = cache.get(key);
         if (!ps1) {
-          ps1 = ps1MaterialFromStandard(shared, m, { vertexColors: hasVC });
+          ps1 = ps1MaterialFromStandard(shared, m, { vertexColors: hasVC, emissiveFromMap });
           cache.set(key, ps1);
         }
         return ps1;
@@ -91,16 +108,45 @@ function GarageWorld({
         ? mesh.material.map(convert)
         : convert(mesh.material);
     });
-  }, [scene, shared]);
+    return root;
+  }, [gltf.scene, shared]);
 
   // Play any node/TRS clips carried by the GLB (none in the current garage asset).
   useSceneAnimations(scene, gltf.animations, { playing: animPlaying, speed: animSpeed });
+
 
   // Baked cameras + (optionally) a synthetic "Demo" view: the Outside camera's pose
   // flipped 180° about its local up, looking into the empty void behind it — where the
   // floating verification rig lives. Guaranteed unoccluded, invisible from real views.
   const targets = useMemo(() => {
     const t = readGltfCameras(scene);
+
+    // Re-aim the Showcase camera. Its baked "texture test" pose points past the tiny stacked
+    // Test_Image planes (a 0.3-unit tile up near the ceiling), so frame them from the plane's
+    // own geometry — stays correct if the asset moves. Sit along the plane normal at a fit
+    // distance for its fov and look dead-on, image upright.
+    const showcase = t.find((c) => c.slug === 'showcase');
+    const plane = scene.getObjectByName('Plane') as Mesh | undefined;
+    if (showcase && plane?.geometry) {
+      scene.updateMatrixWorld(true);
+      plane.geometry.computeBoundingBox();
+      const bb = plane.geometry.boundingBox;
+      if (bb) {
+        const q = plane.getWorldQuaternion(new Quaternion());
+        const scl = plane.getWorldScale(new Vector3());
+        const center = bb.getCenter(new Vector3()).applyMatrix4(plane.matrixWorld);
+        const size = bb.getSize(new Vector3()).multiply(scl);
+        const normal = new Vector3(0, 0, 1).applyQuaternion(q).normalize();
+        const up = new Vector3(0, 1, 0).applyQuaternion(q).normalize();
+        const extent = Math.max(size.x, size.y);
+        const dist = ((extent * 0.5) / Math.tan((showcase.fov * Math.PI) / 360)) * 1.35;
+        showcase.position = center.clone().addScaledVector(normal, dist);
+        showcase.quaternion = new Quaternion().setFromRotationMatrix(
+          new Matrix4().lookAt(showcase.position, center, up),
+        );
+      }
+    }
+
     if (showDemo && t.length > 0) {
       const base = t.find((c) => c.name === 'Camera_Outside') ?? t[0];
       const flipped = base.quaternion
@@ -142,6 +188,23 @@ function GarageWorld({
       pos: first ? first.getWorldPosition(new Vector3()) : new Vector3(0, 6, 0),
       color: first ? first.color.clone() : new Color('#ffffff'),
     };
+  }, [scene]);
+
+  // The invisible "Point_Target_Overhang" plane: lift its geometry + world transform, hide
+  // the raw node, and hand it to <OverhangHotspot> which owns the hover/dashed/click behavior.
+  const hotspot = useMemo(() => {
+    scene.updateMatrixWorld(true);
+    let node: Mesh | undefined;
+    scene.traverse((o) => {
+      if (o.name === 'Point_Target_Overhang') node = o as Mesh;
+    });
+    if (!node || !node.geometry) return null;
+    node.visible = false;
+    const position = new Vector3();
+    const quaternion = new Quaternion();
+    const scale = new Vector3();
+    node.matrixWorld.decompose(position, quaternion, scale);
+    return { geometry: node.geometry as BufferGeometry, position, quaternion, scale };
   }, [scene]);
 
   const tween = useMemo(() => new CameraTween(), []);
@@ -197,6 +260,15 @@ function GarageWorld({
   return (
     <>
       <primitive object={scene} />
+      {hotspot && (
+        <OverhangHotspot
+          geometry={hotspot.geometry}
+          position={hotspot.position}
+          quaternion={hotspot.quaternion}
+          scale={hotspot.scale}
+          onSelect={() => onHotspotSelect('overhang')}
+        />
+      )}
       {demoFrame && (
         <DemoCluster
           shared={shared}
@@ -239,6 +311,15 @@ export function GarageScene() {
     count: cameras.length,
     onSectionChange: handleSectionChange,
   });
+
+  // Jump to a camera by slug via the same scroll → observer → tween path the nav bar uses.
+  const navigateToSlug = useCallback(
+    (slug: string) => {
+      const i = cameras.findIndex((cam) => cam.slug === slug);
+      if (i >= 0) scrollToSection(i, true);
+    },
+    [cameras, scrollToSection],
+  );
 
   // Browser back/forward: instant-scroll to the section + tween the camera (no push).
   useEffect(() => {
@@ -355,6 +436,10 @@ export function GarageScene() {
         gl={{ antialias: false }}
         style={{ position: 'fixed', inset: 0 }}
         camera={{ fov: 50, near: 0.1, far: 1000, position: [-13.5, 2.7, 1.3] }}
+        // The scroll overlay (z-index 1) sits above the canvas and would otherwise swallow
+        // every pointer event. Route R3F's raycaster to listen on that overlay instead so
+        // the 3D hotspot can be hovered/clicked while scroll-nav keeps working.
+        eventSource={scrollerRef as unknown as RefObject<HTMLElement>}
         onCreated={({ gl }) => {
           gl.toneMapping = NoToneMapping;
         }}
@@ -382,6 +467,7 @@ export function GarageScene() {
               onCamerasReady={setCameras}
               onActiveChange={setActiveIndex}
               registerJump={registerJump}
+              onHotspotSelect={navigateToSlug}
             />
           </Suspense>
         </PS1Pipeline>

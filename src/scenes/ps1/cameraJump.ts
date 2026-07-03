@@ -10,11 +10,25 @@ export interface CameraTarget {
   fov: number;
 }
 
-/** Preferred display order + friendly labels for the garage's baked cameras. */
-const ORDER = ['Camera_Outside', 'Camera_Inside', 'Camera_Overhang'];
+/**
+ * Preferred display order for the garage's baked cameras. Names are the GLTFLoader
+ * object names, which sanitize whitespace to underscores (so the "Texture size_test_camera"
+ * node arrives as "Texture_size_test_camera").
+ */
+const ORDER = ['Camera_Outside', 'Camera_Inside', 'Camera_Overhang', 'Texture_size_test_camera'];
+
+/** Explicit labels for cameras whose node name isn't presentable on its own. */
+const LABELS: Record<string, string> = {
+  Texture_size_test_camera: 'Showcase',
+};
+
+/** Normalize a camera object name to its ORDER/LABELS key (whitespace → underscore). */
+const normName = (name: string): string => name.replace(/\s+/g, '_');
 
 function friendly(name: string): string {
-  const stripped = name.replace(/^Camera[_.]?/i, '');
+  const key = normName(name);
+  if (LABELS[key]) return LABELS[key];
+  const stripped = key.replace(/^Camera[_.]?/i, '');
   return stripped ? stripped.charAt(0).toUpperCase() + stripped.slice(1) : name;
 }
 
@@ -35,7 +49,7 @@ export function readGltfCameras(root: Object3D): CameraTarget[] {
     if ((o as PerspectiveCamera).isPerspectiveCamera) cams.push(o as PerspectiveCamera);
   });
   const rank = (n: string) => {
-    const i = ORDER.indexOf(n);
+    const i = ORDER.indexOf(normName(n));
     return i === -1 ? ORDER.length : i;
   };
   cams.sort((a, b) => rank(a.name) - rank(b.name));

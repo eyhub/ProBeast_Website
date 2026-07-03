@@ -270,7 +270,7 @@ export function createPS1Material(
 export function ps1MaterialFromStandard(
   shared: SharedUniforms,
   source: Material,
-  extra: { vertexColors?: boolean } = {}
+  extra: { vertexColors?: boolean; emissiveFromMap?: boolean } = {}
 ): ShaderMaterial {
   const src = source as Material & {
     color?: Color;
@@ -289,10 +289,21 @@ export function ps1MaterialFromStandard(
   const emissiveMap = src.emissiveMap ?? null;
   if (emissiveMap) setNearest(emissiveMap);
 
-  const emissive =
+  let emissive =
     src.emissive && (src.emissive.r > 0 || src.emissive.g > 0 || src.emissive.b > 0)
       ? src.emissive.clone().convertLinearToSRGB()
       : new Color('#000000');
+  let emissiveMapOut = emissiveMap;
+  let emissiveIntensity = src.emissiveIntensity ?? 1;
+
+  // Self-illuminate straight from the base texture. Used for "display panel" surfaces (the
+  // font/texture-test planes) that sit in an unlit corner our single point light never reaches,
+  // so they'd otherwise render near-black. Still goes through posterize/dither/low-res.
+  if (extra.emissiveFromMap && map) {
+    emissive = new Color('#ffffff');
+    emissiveMapOut = map;
+    emissiveIntensity = 1;
+  }
 
   // alpha: glTF BLEND → transparent + opacity; transmission → tinted alpha; MASK → alphaTest
   let opacity = src.opacity ?? 1;
@@ -306,8 +317,8 @@ export function ps1MaterialFromStandard(
     doubleSided: source.side === DoubleSide || source.side === undefined,
     vertexColors: extra.vertexColors ?? false,
     emissive,
-    emissiveIntensity: src.emissiveIntensity ?? 1,
-    emissiveMap,
+    emissiveIntensity,
+    emissiveMap: emissiveMapOut,
     opacity,
     transparent,
     alphaTest: src.alphaTest && src.alphaTest > 0 ? src.alphaTest : 0,
