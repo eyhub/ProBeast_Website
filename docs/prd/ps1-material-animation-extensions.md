@@ -107,7 +107,8 @@ Per-material (fits dedup cache); linear→sRGB. Add a global leva **emissive boo
 **Acceptance:** `EmissiveStrengthTest.glb` emitters glow at varying strengths; non-emissive unchanged.
 
 ### WS3 — Glass / transparency
-**Requirement:** alpha transparency + a **cheap PS1 glass approximation** (no physical refraction).
+**Requirement:** alpha transparency + a **cheap PS1 glass approximation** — **tinted-alpha only, no
+physical refraction** (decision locked, §11).
 **Approach:**
 - **Alpha blend:** if `alphaMode==='BLEND'` or `baseColorFactor.a<1`, output real alpha, set
   `material.transparent=true`, `depthWrite=false`. three depth-sorts transparents within
@@ -292,8 +293,10 @@ blend arbitrary clips at runtime). Recommended as a **hybrid** to limit blast ra
    layout is documented and matched in-shader). All authoring stays in Blender.
 3. **Morph → not needed.** Facial/blendshape animation bakes into VAT (it captures final vertex
    positions from shape keys too). Runtime morph stays in Appendix A only.
+4. **Glass fidelity → tinted-alpha only (WS3).** No screen-space refraction. Glass = tinted,
+   semi-transparent, alpha-blended surfaces — period-accurate and cheap. Refraction is not a
+   future requirement.
 
 **Still open:**
-- **Glass fidelity** — is tinted-alpha enough, or is screen-space refraction wanted later?
 - **VAT encoding** — 32-bit EXR (exact, needs `EXRLoader`) vs 16-bit PNG + min/max remap? Recommend
   EXR for quality; confirm the target's tolerance for the extra loader + file size.
