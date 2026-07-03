@@ -31,13 +31,13 @@
   --color-accent-bright: var(--beast-petrol-bright);
 
   /* ---- Typography -------------------------------------------------------- */
-  --font-display: 'Eurostile Extended', 'Arial Narrow', system-ui, sans-serif;
+  --font-display: 'Geist Variable', 'Eurostile Extended', system-ui, sans-serif;
   --font-body:
-    ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial,
-    sans-serif;
+    'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, Helvetica,
+    Arial, sans-serif;
   --font-mono:
-    ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono', 'Fira Code', Consolas,
-    monospace;
+    'Geist Mono Variable', ui-monospace, 'SF Mono', 'Cascadia Code', 'JetBrains Mono',
+    'Fira Code', Consolas, monospace;
 
   /* Fluid display scale (clamp: min, vw, max) */
   --text-hero: clamp(2.5rem, 1.2rem + 6vw, 7rem);

@@ -4,6 +4,7 @@ import { PerspectiveCamera, Quaternion, Vector3, type Object3D } from 'three';
 export interface CameraTarget {
   name: string;
   label: string;
+  slug: string;
   position: Vector3;
   quaternion: Quaternion;
   fov: number;
@@ -15,6 +16,11 @@ const ORDER = ['Camera_Outside', 'Camera_Inside', 'Camera_Overhang'];
 function friendly(name: string): string {
   const stripped = name.replace(/^Camera[_.]?/i, '');
   return stripped ? stripped.charAt(0).toUpperCase() + stripped.slice(1) : name;
+}
+
+/** URL slug for a camera target: lowercased label, e.g. "Outside" -> "outside". */
+function slugFor(label: string): string {
+  return label.toLowerCase();
 }
 
 /**
@@ -33,13 +39,17 @@ export function readGltfCameras(root: Object3D): CameraTarget[] {
     return i === -1 ? ORDER.length : i;
   };
   cams.sort((a, b) => rank(a.name) - rank(b.name));
-  return cams.map((c) => ({
-    name: c.name,
-    label: friendly(c.name),
-    position: c.getWorldPosition(new Vector3()),
-    quaternion: c.getWorldQuaternion(new Quaternion()),
-    fov: c.fov,
-  }));
+  return cams.map((c) => {
+    const label = friendly(c.name);
+    return {
+      name: c.name,
+      label,
+      slug: slugFor(label),
+      position: c.getWorldPosition(new Vector3()),
+      quaternion: c.getWorldQuaternion(new Quaternion()),
+      fov: c.fov,
+    };
+  });
 }
 
 function easeInOutCubic(t: number): number {

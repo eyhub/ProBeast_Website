@@ -1,4 +1,8 @@
-/* Brand display face. Body/mono fall back to robust system stacks (see tokens). */
+/* Brand display face + Geist sans/mono variable fonts. */
+
+/* @import rules must precede all other rules (except @charset). */
+@import '@fontsource-variable/geist';
+@import '@fontsource-variable/geist-mono';
 
 /* Repaired build of the supplied Eurostile Extended Black: the original TTF
    shipped with a corrupt cmap (truncated format-4 subtable) that browsers'
@@ -9,6 +13,15 @@
     url('/fonts/Eurostile-fixed.woff2') format('woff2'),
     url('/fonts/Eurostile-fixed.ttf') format('truetype');
   font-weight: 900;
+  font-style: normal;
+  font-display: swap;
+}
+
+/* Geist Pixel (Line variant) — pixel-art display face, used for the brand wordmark. */
+@font-face {
+  font-family: 'Geist Pixel';
+  src: url('/fonts/GeistPixel-Line.woff2') format('woff2');
+  font-weight: 500;
   font-style: normal;
   font-display: swap;
 }

@@ -31,7 +31,7 @@ interface GarageWorldProps {
   fogFar: number;
   pointIntensity: number;
   duration: number;
-  onCamerasReady: (cameras: { label: string }[]) => void;
+  onCamerasReady: (cameras: { label: string; slug: string }[]) => void;
   onActiveChange: (index: number) => void;
   registerJump: (fn: (index: number) => void) => void;
 }
@@ -112,14 +112,19 @@ function GarageWorld({
 
   useEffect(() => void registerJump(jumpTo), [jumpTo, registerJump]);
 
-  // Report cameras to the DOM overlay + snap to the first camera on load.
+  // Report cameras to the DOM overlay + snap to the first camera (or URL-matched) on load.
   const inited = useRef(false);
   useEffect(() => {
-    onCamerasReady(targets.map((t) => ({ label: t.label })));
+    onCamerasReady(targets.map((t) => ({ label: t.label, slug: t.slug })));
     if (targets.length && !inited.current) {
       inited.current = true;
-      tween.jumpTo(camera, targets[0], true);
-      onActiveChange(0);
+      const slug = window.location.pathname.slice(1);
+      const matched = Math.max(0, targets.findIndex((t) => t.slug === slug));
+      tween.jumpTo(camera, targets[matched], true);
+      onActiveChange(matched);
+      if (targets[matched].slug !== slug) {
+        window.history.replaceState({ index: matched }, '', `/${targets[matched].slug}`);
+      }
     }
   }, [targets, camera, tween, onCamerasReady, onActiveChange]);
 
@@ -141,10 +146,34 @@ export function GarageScene() {
   const shared = useMemo(() => makeSharedUniforms(), []);
   const store = useCreateStore();
   const [panelOpen, setPanelOpen] = useState(false);
-  const [cameras, setCameras] = useState<{ label: string }[]>([]);
+  const [cameras, setCameras] = useState<{ label: string; slug: string }[]>([]);
   const [activeIndex, setActiveIndex] = useState(0);
   const jumpRef = useRef<(index: number) => void>(() => {});
   const registerJump = useCallback((fn: (index: number) => void) => void (jumpRef.current = fn), []);
+
+  // Jump to a camera index and sync the URL. `push` controls history.pushState vs replaceState.
+  const jumpAndSync = useCallback(
+    (index: number, push: boolean) => {
+      jumpRef.current(index);
+      const slug = cameras[index]?.slug;
+      if (slug && `/${slug}` !== window.location.pathname) {
+        if (push) window.history.pushState({ index }, '', `/${slug}`);
+        else window.history.replaceState({ index }, '', `/${slug}`);
+      }
+    },
+    [cameras]
+  );
+
+  // Browser back/forward: tween to the camera matching the URL, no pushState.
+  useEffect(() => {
+    const onPop = () => {
+      const slug = window.location.pathname.slice(1);
+      const i = cameras.findIndex((c) => c.slug === slug);
+      if (i >= 0) jumpRef.current(i);
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, [cameras]);
 
   const c = useControls(
     {
@@ -246,7 +275,7 @@ export function GarageScene() {
           </Suspense>
         </PS1Pipeline>
       </Canvas>
-      <CameraButtons cameras={cameras} activeIndex={activeIndex} onJump={(i) => jumpRef.current(i)} />
+      <CameraButtons cameras={cameras} activeIndex={activeIndex} onJump={(i) => jumpAndSync(i, true)} />
     </>
   );
 }

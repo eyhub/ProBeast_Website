@@ -1,39 +1,31 @@
-import { useEffect } from 'react';
 import styles from './CameraButtons.module.css';
 
 export interface CameraButtonsProps {
-  cameras: { label: string }[];
+  cameras: { label: string; slug: string }[];
   activeIndex: number;
   onJump: (index: number) => void;
 }
 
-/** DOM overlay: one button per baked camera + number-key (1..9) shortcuts. */
+/** DOM overlay: one href link per baked camera. */
 export function CameraButtons({ cameras, activeIndex, onJump }: CameraButtonsProps) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.repeat || e.metaKey || e.ctrlKey || e.altKey) return;
-      const n = Number(e.key);
-      if (Number.isInteger(n) && n >= 1 && n <= cameras.length) onJump(n - 1);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [cameras.length, onJump]);
-
   if (cameras.length === 0) return null;
 
   return (
     <nav className={styles.bar} aria-label="Camera views">
+      <span className={styles.brand}>Probeast</span>
       {cameras.map((cam, i) => (
-        <button
-          key={cam.label}
-          type="button"
-          className={i === activeIndex ? `${styles.button} ${styles.active}` : styles.button}
-          aria-pressed={i === activeIndex}
-          onClick={() => onJump(i)}
+        <a
+          key={cam.slug}
+          href={`/${cam.slug}`}
+          className={i === activeIndex ? `${styles.link} ${styles.active}` : styles.link}
+          aria-current={i === activeIndex ? 'page' : undefined}
+          onClick={(e) => {
+            e.preventDefault();
+            onJump(i);
+          }}
         >
-          <span className={styles.key}>{i + 1}</span>
-          <span className={styles.label}>{cam.label}</span>
-        </button>
+          {cam.label}
+        </a>
       ))}
     </nav>
   );
