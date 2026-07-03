@@ -29,17 +29,35 @@
 
 .link {
   position: relative;
-  display: inline-flex;
+  display: inline-grid;
+  grid-template-areas: 'stack';
+  justify-items: center;
   align-items: center;
   padding: var(--space-2) var(--space-1);
   color: var(--color-text-muted);
   font-family: var(--font-display);
+  font-variation-settings: 'wght' 400;
   font-size: var(--text-xs);
   letter-spacing: var(--tracking-wide);
   text-transform: uppercase;
   text-decoration: none;
   cursor: pointer;
-  transition: color var(--dur-fast) var(--ease-out);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    font-variation-settings var(--dur-slow) var(--ease-out);
+}
+
+/* Hidden ghost at wght 700 — reserves the bold width so the box never grows on hover/active. */
+.link::before {
+  content: attr(data-text);
+  grid-area: stack;
+  font-variation-settings: 'wght' 700;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.label {
+  grid-area: stack;
 }
 
 .link::after {
@@ -57,6 +75,7 @@
 
 .link:hover {
   color: var(--color-text);
+  font-variation-settings: 'wght' 700;
 }
 
 .link:hover::after {
@@ -70,6 +89,7 @@
 
 .active {
   color: var(--color-text);
+  font-variation-settings: 'wght' 700;
 }
 
 .active::after {

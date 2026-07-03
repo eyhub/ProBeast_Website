@@ -17,6 +17,7 @@ export function CameraButtons({ cameras, activeIndex, onJump }: CameraButtonsPro
         <a
           key={cam.slug}
           href={`/${cam.slug}`}
+          data-text={cam.label}
           className={i === activeIndex ? `${styles.link} ${styles.active}` : styles.link}
           aria-current={i === activeIndex ? 'page' : undefined}
           onClick={(e) => {
@@ -24,7 +25,7 @@ export function CameraButtons({ cameras, activeIndex, onJump }: CameraButtonsPro
             onJump(i);
           }}
         >
-          {cam.label}
+          <span className={styles.label}>{cam.label}</span>
         </a>
       ))}
     </nav>
