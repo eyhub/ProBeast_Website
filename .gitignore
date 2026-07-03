@@ -35,6 +35,8 @@ node_modules/.tmp
 # Local scratch / source-art archive (not tracked)
 /archive/
 # Scene authoring sources (.blend etc.)
+# Downloaded third-party asset packs (raw FBX/BLEND — export runtime GLBs into public/)
+/LowPolyAssetPack_Free/
 
 # Local dev-server logs
 .devserver.*
