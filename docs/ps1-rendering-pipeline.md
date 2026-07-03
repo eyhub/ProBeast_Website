@@ -240,6 +240,35 @@ from the returned values in `useFrame`.
 
 ---
 
+## 7b. Material & animation extensions (implemented)
+
+The shared PS1 material (`src/scenes/ps1/ps1Material.ts`) supports, per
+[docs/prd/ps1-material-animation-extensions.md](prd/ps1-material-animation-extensions.md):
+
+- **Vertex colors** (glTF `COLOR_0`): set `vertexColors: true` (auto-detected per-geometry by the
+  GLB converter); multiplied into the base color. Linear → sRGB in-shader.
+- **Emissive**: `emissive` / `emissiveIntensity` / `emissiveMap` — unlit glow added before fog.
+  Global `uEmissiveBoost` shared uniform (leva "emissive boost").
+- **Glass / transparency**: `opacity < 1` (or glTF BLEND / `KHR_materials_transmission`) → tinted
+  alpha, `depthWrite off`. Transmission approximated as `1 - factor * 0.85` — **no refraction**,
+  by decision. `alphaTest > 0` = MASK cutoff. Double-sided transparent sorting is imperfect
+  (period-accurate; documented risk).
+- **Node/TRS animation**: `useSceneAnimations(root, clips, { playing, speed })` — an
+  `AnimationMixer` at `useFrame` priority 0 (before the priority-1 pipeline render). GLB clips
+  targeting node transforms just work; rigid/segmented characters must export **skin-free**.
+- **VAT (smooth characters)**: bake in Blender with `tools/bake_vat.py`, load with
+  `src/scenes/ps1/vat.ts` (`loadVatFromBake` for EXR bakes, `bakeVatFromDeformer` for procedural
+  loops, `addVatIdAttribute`/`vatIdFromUv1` for the vertex-id channel). Pass `vat: { position,
+  normal, frames }` to `createPS1Material` and drive `uVatFrame` from time. Deformation happens
+  **before** snap/affine/lighting, so animated meshes keep every PS1 trait. `uVatLerp = 0` gives
+  the choppier stepped cadence.
+
+A floating **verification rig** (`DemoCluster.tsx`, leva → Demo → "verification rig") demos all
+six features; it lives in the void behind the Outside camera and adds a synthetic **Demo** nav
+entry (`/demo`) with demo-local lighting overrides that leave the garage look untouched.
+
+---
+
 ## 8. Integrating with this repo
 
 - Put PS1 scenes under `src/scenes/ps1/` and shared shader chunks in

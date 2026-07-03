@@ -7,6 +7,7 @@ import {
   Matrix4,
   NoToneMapping,
   PointLight,
+  Quaternion,
   Vector3,
   type Material,
   type Mesh,
@@ -15,7 +16,9 @@ import {
 } from 'three';
 import { PS1Pipeline } from './PS1Pipeline';
 import { makeSharedUniforms, ps1MaterialFromStandard, type SharedUniforms } from './ps1Material';
-import { CameraTween, readGltfCameras } from './cameraJump';
+import { CameraTween, readGltfCameras, type CameraTarget } from './cameraJump';
+import { DemoCluster } from './DemoCluster';
+import { useSceneAnimations } from './useSceneAnimations';
 import { CameraButtons } from './CameraButtons';
 import { Footer } from './Footer';
 import panelStyles from './RendererPanel.module.css';
@@ -33,7 +36,12 @@ interface GarageWorldProps {
   affineAmt: number;
   fogFar: number;
   pointIntensity: number;
+  emissiveBoost: number;
   duration: number;
+  showDemo: boolean;
+  vatLerp: boolean;
+  animPlaying: boolean;
+  animSpeed: number;
   onCamerasReady: (cameras: { label: string; slug: string }[]) => void;
   onActiveChange: (index: number) => void;
   registerJump: (fn: (index: number) => void) => void;
@@ -46,7 +54,12 @@ function GarageWorld({
   affineAmt,
   fogFar,
   pointIntensity,
+  emissiveBoost,
   duration,
+  showDemo,
+  vatLerp,
+  animPlaying,
+  animSpeed,
   onCamerasReady,
   onActiveChange,
   registerJump,
@@ -57,27 +70,65 @@ function GarageWorld({
   // Own a clone so we can swap materials without mutating the useGLTF cache.
   const scene = useMemo(() => gltf.scene.clone(true), [gltf.scene]);
 
-  // Replace every mesh material with a PS1 material (dedupe by source material).
+  // Replace every mesh material with a PS1 material. Dedup key = source material +
+  // per-geometry flags that force distinct GPU programs (PRD §6: vertex colors).
   useMemo(() => {
-    const cache = new Map<Material, ShaderMaterial>();
-    const convert = (m: Material) => {
-      let ps1 = cache.get(m);
-      if (!ps1) {
-        ps1 = ps1MaterialFromStandard(shared, m);
-        cache.set(m, ps1);
-      }
-      return ps1;
-    };
+    const cache = new Map<string, ShaderMaterial>();
     scene.traverse((o) => {
       const mesh = o as Mesh;
       if (!mesh.isMesh) return;
+      const hasVC = Boolean(mesh.geometry?.attributes?.color);
+      const convert = (m: Material) => {
+        const key = `${m.uuid}|vc:${hasVC ? 1 : 0}`;
+        let ps1 = cache.get(key);
+        if (!ps1) {
+          ps1 = ps1MaterialFromStandard(shared, m, { vertexColors: hasVC });
+          cache.set(key, ps1);
+        }
+        return ps1;
+      };
       mesh.material = Array.isArray(mesh.material)
         ? mesh.material.map(convert)
         : convert(mesh.material);
     });
   }, [scene, shared]);
 
-  const targets = useMemo(() => readGltfCameras(scene), [scene]);
+  // Play any node/TRS clips carried by the GLB (none in the current garage asset).
+  useSceneAnimations(scene, gltf.animations, { playing: animPlaying, speed: animSpeed });
+
+  // Baked cameras + (optionally) a synthetic "Demo" view: the Outside camera's pose
+  // flipped 180° about its local up, looking into the empty void behind it — where the
+  // floating verification rig lives. Guaranteed unoccluded, invisible from real views.
+  const targets = useMemo(() => {
+    const t = readGltfCameras(scene);
+    if (showDemo && t.length > 0) {
+      const base = t.find((c) => c.name === 'Camera_Outside') ?? t[0];
+      const flipped = base.quaternion
+        .clone()
+        .multiply(new Quaternion().setFromAxisAngle(new Vector3(0, 1, 0), Math.PI));
+      const demo: CameraTarget = {
+        name: 'Camera_Demo',
+        label: 'Demo',
+        slug: 'demo',
+        position: base.position.clone(),
+        quaternion: flipped,
+        fov: base.fov,
+      };
+      t.push(demo);
+    }
+    return t;
+  }, [scene, showDemo]);
+
+  // Rig placement: 4.2 units along the Demo view's forward axis, facing the camera.
+  const demoFrame = useMemo(() => {
+    if (!showDemo || targets.length === 0) return null;
+    const demo = targets[targets.length - 1];
+    const fwd = new Vector3(0, 0, -1).applyQuaternion(demo.quaternion);
+    return {
+      position: demo.position.clone().addScaledVector(fwd, 4.2),
+      quaternion: demo.quaternion.clone(),
+    };
+  }, [targets, showDemo]);
 
   // Point-light world position + color (drives the PS1 shading).
   const light = useMemo(() => {
@@ -101,6 +152,7 @@ function GarageWorld({
   useEffect(() => void (shared.uAffineAmt.value = affineAmt), [affineAmt, shared]);
   useEffect(() => void (shared.uFogFar.value = fogFar), [fogFar, shared]);
   useEffect(() => void (shared.uPointIntensity.value = pointIntensity), [pointIntensity, shared]);
+  useEffect(() => void (shared.uEmissiveBoost.value = emissiveBoost), [emissiveBoost, shared]);
   useEffect(() => void shared.uPointColor.value.copy(light.color), [light, shared]);
 
   const jumpTo = useCallback(
@@ -142,7 +194,21 @@ function GarageWorld({
     shared.uPointPosView.value.copy(lightView);
   }, 0);
 
-  return <primitive object={scene} />;
+  return (
+    <>
+      <primitive object={scene} />
+      {demoFrame && (
+        <DemoCluster
+          shared={shared}
+          position={demoFrame.position}
+          quaternion={demoFrame.quaternion}
+          vatLerp={vatLerp}
+          animPlaying={animPlaying}
+          animSpeed={animSpeed}
+        />
+      )}
+    </>
+  );
 }
 
 export function GarageScene() {
@@ -221,6 +287,7 @@ export function GarageScene() {
     }),
     Lighting: folder({
       pointIntensity: { value: 25, min: 0, max: 120, step: 1, label: 'point intensity' },
+      emissiveBoost: { value: 1, min: 0, max: 4, step: 0.05, label: 'emissive boost' },
     }),
     Fog: folder({
       fogOn: { value: true, label: 'enabled' },
@@ -228,6 +295,14 @@ export function GarageScene() {
     }),
       Camera: folder({
         duration: { value: 1, min: 0.1, max: 3, step: 0.05, label: 'transition (s)' },
+      }),
+      Animation: folder({
+        animPlaying: { value: true, label: 'play' },
+        animSpeed: { value: 1, min: 0, max: 3, step: 0.05, label: 'speed' },
+        vatLerp: { value: true, label: 'VAT interpolate' },
+      }),
+      Demo: folder({
+        showDemo: { value: true, label: 'verification rig' },
       }),
     },
     { store },
@@ -292,7 +367,12 @@ export function GarageScene() {
               affineAmt={affineAmt}
               fogFar={fogFar}
               pointIntensity={c.pointIntensity}
+              emissiveBoost={c.emissiveBoost}
               duration={c.duration}
+              showDemo={c.showDemo}
+              vatLerp={c.vatLerp}
+              animPlaying={c.animPlaying}
+              animSpeed={c.animSpeed}
               onCamerasReady={setCameras}
               onActiveChange={setActiveIndex}
               registerJump={registerJump}
