@@ -296,14 +296,20 @@ export function GarageScene() {
       Camera: folder({
         duration: { value: 1, min: 0.1, max: 3, step: 0.05, label: 'transition (s)' },
       }),
-      Animation: folder({
-        animPlaying: { value: true, label: 'play' },
-        animSpeed: { value: 1, min: 0, max: 3, step: 0.05, label: 'speed' },
-        vatLerp: { value: true, label: 'VAT interpolate' },
-      }),
-      Demo: folder({
-        showDemo: { value: true, label: 'verification rig' },
-      }),
+      Animation: folder(
+        {
+          animPlaying: { value: true, label: 'play' },
+          animSpeed: { value: 1, min: 0, max: 3, step: 0.05, label: 'speed' },
+          vatLerp: { value: true, label: 'VAT interpolate' },
+        },
+        { collapsed: true }
+      ),
+      Demo: folder(
+        {
+          showDemo: { value: true, label: 'verification rig' },
+        },
+        { collapsed: true }
+      ),
     },
     { store },
   );

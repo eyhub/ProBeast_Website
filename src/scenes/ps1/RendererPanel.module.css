@@ -55,8 +55,12 @@
   bottom: calc(var(--space-6) + 3rem + 3rem + var(--space-2));
   z-index: var(--z-overlay);
   width: 300px;
-  max-height: 80vh;
-  overflow: hidden;
+  max-height: min(80vh, calc(100vh - 12rem));
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-border) transparent;
   border: 1px solid var(--color-border);
   border-radius: var(--radius-md);
   background: color-mix(in srgb, var(--beast-obsidian) 72%, transparent);
